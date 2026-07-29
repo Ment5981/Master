@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Serif_SC } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Noto_Sans_SC,
+  Noto_Serif_SC,
+} from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,6 +21,12 @@ const notoSerif = Noto_Serif_SC({
   variable: "--font-noto-serif",
   subsets: ["latin"],
   weight: ["500", "600"],
+});
+
+const notoSans = Noto_Sans_SC({
+  variable: "--font-noto-sans",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -38,7 +49,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${notoSerif.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${notoSans.variable} ${notoSerif.variable} antialiased`}
       >
         {children}
       </body>

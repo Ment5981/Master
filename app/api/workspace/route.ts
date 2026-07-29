@@ -1,7 +1,9 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { masterWorkspaces } from "../../../db/schema";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import { isWorkspaceV2 } from "../../domain/migrate-workspace";
+import { validateWorkspace } from "../../domain/validate-workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -46,23 +48,89 @@ export async function PUT(request: Request) {
     return Response.json({ error: "请先登录后保存。" }, { status: 401 });
   }
   try {
-    const payload = (await request.json()) as { state?: unknown };
-    if (!payload.state || typeof payload.state !== "object") {
+    const payload = (await request.json()) as {
+      state?: unknown;
+      baseUpdatedAt?: string | null;
+    };
+    if (!isWorkspaceV2(payload.state)) {
       return Response.json({ error: "保存内容无效。" }, { status: 400 });
     }
-    const stateJson = JSON.stringify(payload.state);
+    const validation = validateWorkspace(payload.state);
+    if (!validation.ok) {
+      return Response.json(
+        { error: "工作区数据校验失败，请检查后重试。" },
+        { status: 400 },
+      );
+    }
+    const db = getDb();
+    const [current] = await db
+      .select()
+      .from(masterWorkspaces)
+      .where(eq(masterWorkspaces.userKey, userKey))
+      .limit(1);
+    if (current && current.updatedAt !== payload.baseUpdatedAt) {
+      return Response.json(
+        {
+          error: "数据已在另一个页面更新，请刷新后继续。",
+          updatedAt: current.updatedAt,
+        },
+        { status: 409 },
+      );
+    }
+    let stateToSave = payload.state;
+    if (current) {
+      const previous = JSON.parse(current.stateJson) as { version?: number };
+      if (previous.version === 1 && !payload.state.migration?.legacyV1) {
+        stateToSave = {
+          ...payload.state,
+          migration: {
+            ...(payload.state.migration ?? {}),
+            migratedAt: new Date().toISOString(),
+            sourceVersion: 1,
+            legacyV1: previous,
+          },
+        };
+      }
+    }
+    const stateJson = JSON.stringify(stateToSave);
     if (stateJson.length > 500_000) {
       return Response.json({ error: "当前目标内容过大。" }, { status: 413 });
     }
     const updatedAt = new Date().toISOString();
-    const db = getDb();
-    await db
-      .insert(masterWorkspaces)
-      .values({ userKey, stateJson, updatedAt })
-      .onConflictDoUpdate({
-        target: masterWorkspaces.userKey,
-        set: { stateJson, updatedAt },
-      });
+    if (current) {
+      const result = await db
+        .update(masterWorkspaces)
+        .set({ stateJson, updatedAt })
+        .where(
+          and(
+            eq(masterWorkspaces.userKey, userKey),
+            eq(masterWorkspaces.updatedAt, current.updatedAt),
+          ),
+        );
+      if ((result.meta.changes ?? 0) !== 1) {
+        return Response.json(
+          { error: "数据已更新，请刷新后继续。" },
+          { status: 409 },
+        );
+      }
+    } else {
+      if (payload.baseUpdatedAt) {
+        return Response.json(
+          { error: "数据状态已变化，请刷新后继续。" },
+          { status: 409 },
+        );
+      }
+      const result = await db
+        .insert(masterWorkspaces)
+        .values({ userKey, stateJson, updatedAt })
+        .onConflictDoNothing();
+      if ((result.meta.changes ?? 0) !== 1) {
+        return Response.json(
+          { error: "数据已在另一个页面创建，请刷新。" },
+          { status: 409 },
+        );
+      }
+    }
     return Response.json({ saved: true, updatedAt });
   } catch {
     return Response.json({ error: "暂时无法保存，请稍后重试。" }, { status: 500 });
