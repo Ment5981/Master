@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { headers } from "next/headers";
 import { getDb } from "../../../db";
 import { masterWorkspaces } from "../../../db/schema";
 import { getChatGPTUser } from "../../chatgpt-auth";
@@ -7,9 +8,16 @@ import { validateWorkspace } from "../../domain/validate-workspace";
 
 export const dynamic = "force-dynamic";
 
+const INSTALLATION_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 async function getUserKey() {
   const user = await getChatGPTUser();
   if (user?.email) return user.email;
+  const installationId = (await headers()).get("x-master-installation-id");
+  if (installationId && INSTALLATION_ID_PATTERN.test(installationId)) {
+    return `android:${installationId}`;
+  }
   if (process.env.NODE_ENV === "development") return "preview@master.local";
   return null;
 }

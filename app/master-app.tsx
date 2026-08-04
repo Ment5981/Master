@@ -136,6 +136,52 @@ export function MasterApp({
     return () => clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    let live = true;
+    let removeListener: (() => void) | null = null;
+    void Promise.all([import("@capacitor/app"), import("@capacitor/core")])
+      .then(([{ App }, { Capacitor }]) => {
+        if (!Capacitor.isNativePlatform()) return null;
+        return App.addListener("backButton", ({ canGoBack }) => {
+          if (deleteId) {
+            setDeleteId(null);
+            return;
+          }
+          if (nodeEditor) {
+            setNodeEditor(null);
+            return;
+          }
+          if (taskEditor) {
+            setTaskEditor(null);
+            return;
+          }
+          if (detailVisible) {
+            setDetailVisible(false);
+            return;
+          }
+          if (canGoBack) {
+            window.history.back();
+            return;
+          }
+          void App.exitApp();
+        });
+      })
+      .then((handle) => {
+        if (!handle) return;
+        if (!live) {
+          void handle.remove();
+          return;
+        }
+        removeListener = () => {
+          void handle.remove();
+        };
+      });
+    return () => {
+      live = false;
+      removeListener?.();
+    };
+  }, [deleteId, detailVisible, nodeEditor, taskEditor]);
+
   const setWithUndo = (
     change: (draft: WorkspaceState) => void,
     message: string,
