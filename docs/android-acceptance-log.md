@@ -58,3 +58,21 @@ external gates that require Android Studio/SDK plus an emulator or device:
 `AND-001`/device interaction and `AND-011` APK compilation. No source fix is
 indicated by the repository checks; once those external prerequisites are
 available, rerun the commands below and attach evidence to this log.
+
+## 2026-08-05 · Loop 3 (GitHub Actions native build)
+
+### Passed
+
+- GitHub Actions run `30924826249` completed successfully on Java 21.
+- `assembleDebug` produced `master-debug-apk` (16 MB artifact).
+- APK metadata inspection: package `com.master.time`, app name `Master`, hosted
+  HTTPS origin, `cleartext: false`, and `@capacitor/app` plugin are present.
+- APK SHA-256: `a8ef4cb53e3d0986a90bd686befa00eaf7972c8004305a1dc88fd60ab5ae19ed`.
+
+### Remaining device gate
+
+- `AND-011` is now PASS with remote Gradle evidence.
+- `AND-001` and the interaction cases (`AND-002`–`AND-010`, `AND-012`) still
+  require installation on an emulator or physical Android device. The current
+  environment has no `adb`, emulator or Android SDK, so these remain
+  `BLOCKED_EXTERNAL` rather than being inferred from a successful build.
