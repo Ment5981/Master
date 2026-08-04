@@ -9,6 +9,7 @@ import {
 import type { WorkspaceState } from "../domain/types";
 import { validateWorkspace } from "../domain/validate-workspace";
 import { dateKey } from "../lib/dates";
+import { masterRequestHeaders } from "../client-identity";
 
 export type SaveStatus = "loading" | "saving" | "saved" | "error" | "conflict";
 
@@ -35,7 +36,9 @@ export function useWorkspacePersistence() {
 
   useEffect(() => {
     let live = true;
-    fetch("/api/workspace")
+    fetch("/api/workspace", {
+      headers: masterRequestHeaders(),
+    })
       .then(async (response) => {
         if (!response.ok) throw new Error("load");
         return (await response.json()) as {
@@ -101,7 +104,9 @@ export function useWorkspacePersistence() {
         try {
           const response = await fetch("/api/workspace", {
             method: "PUT",
-            headers: { "content-type": "application/json" },
+            headers: masterRequestHeaders({
+              "content-type": "application/json",
+            }),
             body: JSON.stringify({
               state: snapshot,
               baseUpdatedAt: baseUpdatedAt.current,
