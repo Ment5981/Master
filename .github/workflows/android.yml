@@ -38,7 +38,7 @@ jobs:
           npm run test:android:contract
           npx tsc --noEmit
           npm run lint
-          npm run android:prepare
+          npm run android:sync
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
