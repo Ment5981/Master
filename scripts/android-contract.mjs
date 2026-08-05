@@ -8,7 +8,7 @@ assert.equal(packageJson.scripts["android:apk"].includes("assembleDebug"), true)
 assert.equal(packageJson.scripts["android:aab"].includes("bundleRelease"), true);
 assert.equal(typeof packageJson.dependencies["@capacitor/app"], "string");
 assert.match(capacitor, /appId:\s*["']com\.master\.time["']/);
-assert.match(capacitor, /master-validation\.hxp332708\.chatgpt\.site/);
+assert.match(capacitor, /master\.xuanshu\.fun/);
 assert.match(capacitor, /cleartext:\s*false/);
 assert.equal(existsSync("docs/android-acceptance.md"), true);
 assert.equal(existsSync("docs/android-test-cases.md"), true);
