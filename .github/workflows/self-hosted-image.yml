@@ -63,8 +63,6 @@ jobs:
           DEPLOY_USER: ${{ secrets.MASTER_DEPLOY_USER }}
           DEPLOY_KEY: ${{ secrets.MASTER_DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.MASTER_DEPLOY_KNOWN_HOSTS }}
-          GHCR_USER: ${{ secrets.MASTER_GHCR_USER }}
-          GHCR_TOKEN: ${{ secrets.MASTER_GHCR_TOKEN }}
         run: |
           set -euo pipefail
           : "${DEPLOY_HOST:?Set MASTER_DEPLOY_HOST in repository Actions secrets}"
@@ -84,10 +82,6 @@ jobs:
           ssh -o BatchMode=yes -o IdentitiesOnly=yes -i "${HOME}/.ssh/id_ed25519" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -se' <<'REMOTE'
           set -euo pipefail
           cd /root/master
-
-          if [ -n "${GHCR_TOKEN:-}" ]; then
-            printf '%s' "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
-          fi
 
           export MASTER_IMAGE=ghcr.io/ment5981/master-self-hosted:latest
           docker compose -f deploy/self-hosted/docker-compose.yml pull master
