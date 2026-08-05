@@ -1,15 +1,14 @@
 # Master Android Acceptance Gate
 
-This gate covers the first Android validation release: a signed or debug APK
-that loads the hosted Master app through Capacitor and keeps the existing
-Cloudflare D1/API data path intact.
+This gate covers the first Android self-hosted release: a signed or debug APK
+that loads Master through Capacitor and persists workspace data through the
+server-side SQLite/API path.
 
 ## Scope
 
 - Android application shell with package ID `com.master.time`.
-- Hosted UI and Cloudflare API remain the source of truth for V1.
-- Android gets a random installation identity for D1 workspace persistence when
-  ChatGPT identity headers are not available.
+- Hosted UI and the self-hosted SQLite/API remain the source of truth for V1.
+- Android gets a random installation identity for workspace persistence.
 - V1 is online-first. It does not claim offline editing or background AI
   generation.
 
