@@ -34,7 +34,7 @@ timeout \
   "${vinext}" build
 
 if [[ "${MASTER_SELF_HOSTED:-0}" == "1" ]]; then
-  "${script_dir}/validate-self-hosted-artifact.sh"
+  bash "${script_dir}/validate-self-hosted-artifact.sh"
 else
-  "${script_dir}/validate-artifact.sh"
+  bash "${script_dir}/validate-artifact.sh"
 fi
