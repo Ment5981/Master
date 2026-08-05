@@ -34,6 +34,17 @@ const localBindingConfig = {
 };
 
 export default defineConfig(async () => {
+  const selfHosted = process.env.MASTER_SELF_HOSTED === "1";
+
+  if (selfHosted) {
+    return {
+      server: {
+        host: "0.0.0.0",
+      },
+      plugins: [vinext()],
+    };
+  }
+
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= "false";
