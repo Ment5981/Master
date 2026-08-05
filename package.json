@@ -10,9 +10,12 @@
     "install:ci": "bash scripts/install-ci.sh",
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
     "build": "bash scripts/build-verified.sh",
+    "build:self-hosted": "MASTER_SELF_HOSTED=1 bash scripts/build-verified.sh",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
+    "start:self-hosted": "MASTER_SELF_HOSTED=1 WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "test:unit": "node --import tsx --test tests/domain.test.ts",
+    "test:self-hosted": "node --import tsx --test tests/self-hosted-store.test.ts",
     "test:android:contract": "node scripts/android-contract.mjs",
     "android:prepare": "npm run build && node scripts/ensure-capacitor-entry.mjs",
     "android:sync": "npm run android:prepare && npx cap sync android",
@@ -38,7 +41,8 @@
     "drizzle-orm": "0.45.2",
     "next": "16.2.6",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "vinext": "0.0.50"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.8",
@@ -58,7 +62,6 @@
     "tailwindcss": "4.2.1",
     "tsx": "^4.20.6",
     "typescript": "5.9.3",
-    "vinext": "0.0.50",
     "vite": "8.0.13",
     "wrangler": "4.92.0"
   },
