@@ -13,6 +13,7 @@ import {
   Sparkle,
   Sun,
   Target,
+  UploadSimple,
   UserCircle,
   X,
 } from "@phosphor-icons/react";
@@ -45,6 +46,8 @@ import {
   type TaskStatus,
   type WorkspaceState,
 } from "./domain/types";
+import { isWorkspaceV2 } from "./domain/migrate-workspace";
+import { validateWorkspace } from "./domain/validate-workspace";
 import { useWorkspacePersistence } from "./hooks/use-workspace-persistence";
 import {
   dateKey,
@@ -615,6 +618,12 @@ export function MasterApp({
             state={state}
             save={save}
             savedAt={savedAt}
+            importState={(next) => {
+              mutate((draft) => {
+                Object.assign(draft, clone(next));
+              });
+              setToast({ message: "数据已载入，正在保存到新空间。" });
+            }}
             reset={() => {
               if (window.confirm("恢复示例会覆盖当前工作区，是否继续？")) {
                 reset();
@@ -1507,14 +1516,17 @@ function ProfileExperience({
   state,
   save,
   savedAt,
+  importState,
   reset,
 }: {
   user: { displayName: string; email: string };
   state: WorkspaceState;
   save: string;
   savedAt: string | null;
+  importState: (state: WorkspaceState) => void;
   reset: () => void;
 }) {
+  const [importNotice, setImportNotice] = useState<string | null>(null);
   const metrics = nodeMetrics(state, state.goal.id);
   const exportData = () => {
     const url = URL.createObjectURL(
@@ -1527,6 +1539,21 @@ function ProfileExperience({
     link.download = "master-data.json";
     link.click();
     URL.revokeObjectURL(url);
+  };
+  const importData = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      if (!isWorkspaceV2(parsed)) throw new Error("version");
+      const validation = validateWorkspace(parsed);
+      if (!validation.ok) throw new Error("invalid");
+      importState(parsed);
+      setImportNotice("已载入，正在保存");
+    } catch {
+      setImportNotice("文件无效，请选择 Master 导出的 JSON 文件");
+    }
   };
   return (
     <div className="view-frame">
@@ -1588,10 +1615,21 @@ function ProfileExperience({
             <DownloadSimple size={17} />
             导出数据
           </button>
+          <label className="secondary-button import-button">
+            <UploadSimple size={17} />
+            导入数据
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={importData}
+              hidden
+            />
+          </label>
           <button className="text-button danger" onClick={reset}>
             恢复示例
           </button>
         </div>
+        {importNotice && <p className="data-import-notice">{importNotice}</p>}
       </section>
     </div>
   );
