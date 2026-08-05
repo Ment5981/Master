@@ -1,7 +1,5 @@
-import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
-import { getDb } from "../../../db";
-import { masterWorkspaces } from "../../../db/schema";
+import { getWorkspaceStore } from "../../../db/workspace-store";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { isWorkspaceV2 } from "../../domain/migrate-workspace";
 import { validateWorkspace } from "../../domain/validate-workspace";
@@ -12,11 +10,17 @@ const INSTALLATION_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function getUserKey() {
+  const installationId = (await headers()).get("x-master-installation-id");
+  if (process.env.MASTER_SELF_HOSTED === "1") {
+    return installationId && INSTALLATION_ID_PATTERN.test(installationId)
+      ? `installation:${installationId.toLowerCase()}`
+      : null;
+  }
+
   const user = await getChatGPTUser();
   if (user?.email) return user.email;
-  const installationId = (await headers()).get("x-master-installation-id");
   if (installationId && INSTALLATION_ID_PATTERN.test(installationId)) {
-    return `android:${installationId}`;
+    return `android:${installationId.toLowerCase()}`;
   }
   if (process.env.NODE_ENV === "development") return "preview@master.local";
   return null;
@@ -28,12 +32,8 @@ export async function GET() {
     return Response.json({ error: "请先登录后使用永久保存。" }, { status: 401 });
   }
   try {
-    const db = getDb();
-    const [record] = await db
-      .select()
-      .from(masterWorkspaces)
-      .where(eq(masterWorkspaces.userKey, userKey))
-      .limit(1);
+    const store = await getWorkspaceStore();
+    const record = await store.get(userKey);
     return Response.json({
       state: record ? JSON.parse(record.stateJson) : null,
       updatedAt: record?.updatedAt ?? null,
@@ -70,12 +70,9 @@ export async function PUT(request: Request) {
         { status: 400 },
       );
     }
-    const db = getDb();
-    const [current] = await db
-      .select()
-      .from(masterWorkspaces)
-      .where(eq(masterWorkspaces.userKey, userKey))
-      .limit(1);
+
+    const store = await getWorkspaceStore();
+    const current = await store.get(userKey);
     if (current && current.updatedAt !== payload.baseUpdatedAt) {
       return Response.json(
         {
@@ -85,6 +82,7 @@ export async function PUT(request: Request) {
         { status: 409 },
       );
     }
+
     let stateToSave = payload.state;
     if (current) {
       const previous = JSON.parse(current.stateJson) as { version?: number };
@@ -100,22 +98,21 @@ export async function PUT(request: Request) {
         };
       }
     }
+
     const stateJson = JSON.stringify(stateToSave);
     if (stateJson.length > 500_000) {
       return Response.json({ error: "当前目标内容过大。" }, { status: 413 });
     }
+
     const updatedAt = new Date().toISOString();
     if (current) {
-      const result = await db
-        .update(masterWorkspaces)
-        .set({ stateJson, updatedAt })
-        .where(
-          and(
-            eq(masterWorkspaces.userKey, userKey),
-            eq(masterWorkspaces.updatedAt, current.updatedAt),
-          ),
-        );
-      if ((result.meta.changes ?? 0) !== 1) {
+      const updated = await store.updateIfCurrent(
+        userKey,
+        current.updatedAt,
+        stateJson,
+        updatedAt,
+      );
+      if (!updated) {
         return Response.json(
           { error: "数据已更新，请刷新后继续。" },
           { status: 409 },
@@ -128,11 +125,8 @@ export async function PUT(request: Request) {
           { status: 409 },
         );
       }
-      const result = await db
-        .insert(masterWorkspaces)
-        .values({ userKey, stateJson, updatedAt })
-        .onConflictDoNothing();
-      if ((result.meta.changes ?? 0) !== 1) {
+      const inserted = await store.insertIfAbsent(userKey, stateJson, updatedAt);
+      if (!inserted) {
         return Response.json(
           { error: "数据已在另一个页面创建，请刷新。" },
           { status: 409 },
