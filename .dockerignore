@@ -1,0 +1,13 @@
+.git
+.github
+android
+node_modules
+dist
+.vinext
+.wrangler
+.sites-runtime
+coverage
+*.log
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
