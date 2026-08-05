@@ -288,6 +288,10 @@ select:focus-visible {
   background: var(--surface-raised);
 }
 
+.import-button {
+  cursor: pointer;
+}
+
 .text-button {
   min-height: 32px;
   border: 0;
@@ -2432,6 +2436,11 @@ select:focus-visible {
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+.data-import-notice {
+  margin-top: 10px !important;
+  color: var(--accent) !important;
 }
 
 /* Forms and overlays */

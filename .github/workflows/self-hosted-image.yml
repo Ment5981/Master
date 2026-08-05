@@ -1,0 +1,103 @@
+name: Master self-hosted image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - agent/self-host-sqlite
+    paths:
+      - "app/**"
+      - "db/**"
+      - "public/**"
+      - "worker/**"
+      - "build/**"
+      - "scripts/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "next.config.ts"
+      - ".github/workflows/self-hosted-image.yml"
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/ment5981/master-self-hosted:latest
+            ghcr.io/ment5981/master-self-hosted:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Master server
+    needs: image
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.MASTER_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.MASTER_DEPLOY_USER }}
+          DEPLOY_KEY: ${{ secrets.MASTER_DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.MASTER_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          : "${DEPLOY_HOST:?Set MASTER_DEPLOY_HOST in repository Actions secrets}"
+          : "${DEPLOY_USER:?Set MASTER_DEPLOY_USER in repository Actions secrets}"
+          : "${DEPLOY_KEY:?Set MASTER_DEPLOY_SSH_KEY in repository Actions secrets}"
+
+          install -m 700 -d "${HOME}/.ssh"
+          printf '%s\n' "${DEPLOY_KEY}" > "${HOME}/.ssh/id_ed25519"
+          chmod 600 "${HOME}/.ssh/id_ed25519"
+          if [ -n "${DEPLOY_KNOWN_HOSTS:-}" ]; then
+            printf '%s\n' "${DEPLOY_KNOWN_HOSTS}" > "${HOME}/.ssh/known_hosts"
+          else
+            ssh-keyscan -H "${DEPLOY_HOST}" > "${HOME}/.ssh/known_hosts" 2>/dev/null
+          fi
+          chmod 644 "${HOME}/.ssh/known_hosts"
+
+          ssh -o BatchMode=yes -o IdentitiesOnly=yes -i "${HOME}/.ssh/id_ed25519" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          cd /root/master
+
+          export MASTER_IMAGE=ghcr.io/ment5981/master-self-hosted:latest
+          docker compose -f deploy/self-hosted/docker-compose.yml pull master
+          docker compose -f deploy/self-hosted/docker-compose.yml up -d --no-build --force-recreate master
+
+          for attempt in $(seq 1 30); do
+            health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' master-app 2>/dev/null || true)
+            if [ "${health}" = healthy ]; then
+              break
+            fi
+            if [ "${attempt}" = 30 ]; then
+              docker logs --tail 100 master-app || true
+              exit 1
+            fi
+            sleep 2
+          done
+
+          docker exec master-app node -e "fetch('http://127.0.0.1:3000/api/health').then(async r => { console.log(await r.text()); process.exit(r.ok ? 0 : 1) }).catch(() => process.exit(1))"
+          REMOTE
