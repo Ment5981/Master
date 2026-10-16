@@ -28,7 +28,8 @@ export async function startDesktopGateway(options: DesktopGatewayOptions): Promi
   }
   // An isolated object, not process.loadEnvFile()/dotenv.config(): Electron process state
   // and parent-shell credentials remain untouched. env cannot override these boundaries.
-  const config = { ...readConfig(fileEnv), bearer: options.token, origins: [...origins], port: 0 }
+  const inheritedProxy = process.env.HTTPS_PROXY?.trim() || process.env.HTTP_PROXY?.trim() || process.env.ALL_PROXY?.trim() || ''
+  const config = { ...readConfig({ ...fileEnv, QWEN_HTTPS_PROXY: fileEnv.QWEN_HTTPS_PROXY?.trim() || inheritedProxy }), bearer: options.token, origins: [...origins], port: 0 }
   const app = await createGateway({ config })
   try {
     const url = await app.listen({ host: '127.0.0.1', port: 0 })

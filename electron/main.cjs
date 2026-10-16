@@ -44,7 +44,7 @@ app.whenReady().then(async () => {
   await fs.mkdir(profile, { recursive: true })
   const envPath = path.join(profile, 'master-ai.env')
   // Create only an empty template; never overwrite an existing local key file.
-  try { await fs.writeFile(envPath, '# Master local AI configuration. Keep private. Restart Master after editing.\nDASHSCOPE_API_KEY=\nQWEN_MODEL=qwen-plus\nQWEN_ASR_MODEL=qwen3-asr-flash-realtime\n', { flag: 'wx', mode: 0o600 }) } catch (e) { if (e.code !== 'EEXIST') throw e }
+  try { await fs.writeFile(envPath, '# Master local AI configuration. Keep private. Restart Master after editing.\nDASHSCOPE_API_KEY=\nQWEN_MODEL=qwen-plus\nQWEN_ASR_MODEL=qwen3-asr-flash-realtime\n# Optional: WebSocket proxy, for example http://127.0.0.1:7890\nQWEN_HTTPS_PROXY=\n', { flag: 'wx', mode: 0o600 }) } catch (e) { if (e.code !== 'EEXIST') throw e }
   storage = await createV2Storage({ filePath: path.join(profile, 'master-v2.sqlite') })
   const { startDesktopGateway } = require('./gateway.cjs')
   const token = randomBytes(32).toString('base64url')

@@ -1,7 +1,7 @@
 {
   "name": "master",
   "private": true,
-  "version": "0.2.0-alpha.1",
+  "version": "0.2.0-alpha.2",
   "description": "Master 时间思维导图与节奏管理",
   "author": "Ment5981",
   "type": "module",
@@ -52,6 +52,7 @@
     "date-fns": "^4.4.0",
     "dexie": "^4.4.6",
     "fastify": "^5.12.5",
+    "https-proxy-agent": "7.0.6",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "ws": "^8.22.0",

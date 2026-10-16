@@ -4,6 +4,7 @@ export interface GatewayConfig {
   baseURL: string
   asrURL: string
   asrModel: string
+  asrProxyURL: string
   bearer: string
   origins: string[]
   port: number
@@ -24,6 +25,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
     baseURL: env.QWEN_BASE_URL?.trim() || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     asrURL: env.QWEN_ASR_URL?.trim() || 'wss://dashscope.aliyuncs.com/api-ws/v1/realtime',
     asrModel: env.QWEN_ASR_MODEL?.trim() || 'qwen3-asr-flash-realtime',
+    asrProxyURL: env.QWEN_HTTPS_PROXY?.trim() || env.HTTPS_PROXY?.trim() || env.HTTP_PROXY?.trim() || env.ALL_PROXY?.trim() || '',
     bearer: env.MASTER_GATEWAY_TOKEN?.trim() ?? '',
     origins: (env.MASTER_ALLOWED_ORIGINS || 'http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:4173,http://localhost:4173').split(',').map(s => s.trim()).filter(Boolean),
     port: integer(env.MASTER_GATEWAY_PORT, 4318, 1024, 65535),

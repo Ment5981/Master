@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 import WebSocket from 'ws'
 import type { GatewayConfig } from './config'
 
@@ -85,7 +86,8 @@ export function registerVoice(app: FastifyInstance, config: GatewayConfig) {
         clearTimeout(authTimer)
         const url = new URL(config.asrURL)
         url.searchParams.set('model', config.asrModel)
-        upstream = new WebSocket(url, { headers: { Authorization: `Bearer ${config.apiKey}` }, handshakeTimeout: 10000, maxPayload: 128000 })
+        const agent = config.asrProxyURL ? new HttpsProxyAgent(config.asrProxyURL) : undefined
+        upstream = new WebSocket(url, { headers: { Authorization: `Bearer ${config.apiKey}` }, agent, handshakeTimeout: 10000, maxPayload: 128000 })
         upstream.on('open', () => {
           if (ended) return upstream?.terminate()
           upstreamSend('session.update', { session: { input_audio_format: 'pcm', sample_rate: 16000, input_audio_transcription: { language: 'zh' }, turn_detection: { type: 'server_vad', threshold: 0, silence_duration_ms: 700 } } })
